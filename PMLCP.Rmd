@@ -1,0 +1,95 @@
+---
+title: "PML"
+author: "Ivo Pinheiro"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## Practical Machine Learning - Course Project
+
+**To predict the manner in which participants performed barbell lifts using sensor data, that was the task at hand. To accomplish this, I cleaned and analysed data to built a model that predicts the value of a target variable ($classe) based on input variables (53 features).**
+
+```{r}
+# Libraries
+set.seed(123)
+library(ggplot2)
+library(randomForest)
+library(caret)
+```
+
+### Data preprocessing
+
+I started by assigning NA to any missing value in the data, and then I removed any column that had over 90% NA. As it didn't make sense to include the first six columns, these were removed. Lastly, the target variable ($classe) was converted into a factor variable.
+
+**These steps reduced the number of columns from 160 to 54, and ensured that our data was now ready for analysis and building our model.**
+
+```{r}
+# Importing
+url_training <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+url_testing <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+# Reading
+training_data <- read.csv(url_training)
+testing_data <- read.csv(url_testing)
+# Cleaning training set
+dim(training_data)
+training_data[training_data == ""] <- NA
+proportion_NA_train <- colSums(is.na(training_data))/nrow(training_data)
+training_data1 <- training_data[, proportion_NA_train < 0.9]
+training_data2 <- training_data1[, -c(1:6)]
+training_data2$classe <- as.factor(training_data2$classe)
+```
+
+### Model building and evaluation 
+
+Since this is a classification problem and we already know the target variable ($classe), the model that made the most sense to me was random forests. I trained the model on 70% of the training set and then I tested it on the other 30%.
+
+```{r}
+# Model with training set
+in_Train <- createDataPartition(y=training_data2$classe, p=0.7, list=FALSE)
+trainingset <- training_data2[in_Train, ]
+testingset <- training_data2[-in_Train, ]
+model_1 <- randomForest(classe ~ ., data = trainingset)
+print(model_1)
+````
+
+Happy with the results, I applied the model to the testing set.
+
+```{r}
+# Cleaning test set
+dim(testing_data)
+testing_data[testing_data == ""] <- NA
+proportion_NA_test <- colSums(is.na(testing_data))/nrow(testing_data)
+testing_data1 <- testing_data[, proportion_NA_test < 0.9]
+testing_data2 <- testing_data1[, -c(1:6)]
+# Applying model to test set
+testset_predictions <- predict(model_1, newdata = testing_data2)
+print(testset_predictions)
+```
+
+**So what is the percentage of the target variable in the test set that are correctly classified by the model?**
+
+```{r}
+predictions <- predict(model_1, testingset)
+confusionMatrix(predictions, testingset$classe)
+```
+
+**According to the confusion matrix, the model correctly classified 99.85% of the instances overall.**
+
+**Given the high accuracy, the expected out-of-sample error is likely to be very low (1−0.9985=0.0015). **
+
+**Thus, the expected out-of-sample error is approximately 0.15%.**
+
+
+## Plots
+
+```{r}
+varImpPlot(model_1)
+
+ggplot(training_data2, aes(x = classe)) + 
+        geom_bar(fill = "white", color = "grey") + 
+        labs(title = "How many of each $classe in the training set", x = NULL, y = NULL)
+
+````
+
+
+
